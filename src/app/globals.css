@@ -58,3 +58,54 @@ body {
 input[type="range"] {
   accent-color: #b4814e;
 }
+
+/* ── Accessibility: visible focus for keyboard users ─────────────────────── */
+:focus-visible {
+  outline: 2px solid #b4814e;
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+/* Remove default outline only when focus is mouse-driven (not keyboard). */
+:focus:not(:focus-visible) {
+  outline: none;
+}
+
+/* Respect users who prefer reduced motion. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+  .skeleton {
+    animation: none;
+  }
+}
+
+/* ── Mobile: keep tap targets comfortable, prevent iOS zoom on inputs ────── */
+@media (max-width: 640px) {
+  button,
+  a,
+  input,
+  select,
+  textarea {
+    /* 44px is the Apple/Google minimum tap target. */
+    min-height: 40px;
+  }
+  /* Prevent iOS Safari from zooming on focus (<16px triggers it). */
+  input,
+  select,
+  textarea {
+    font-size: 16px;
+  }
+}
+
+/* Larger art-tap targets on touch devices. */
+@media (hover: none) {
+  .group:hover {
+    transform: none;
+  }
+}

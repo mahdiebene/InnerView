@@ -28,7 +28,7 @@ export function AppNav() {
     <header className="sticky top-0 z-30 border-b border-ink-100/70 bg-paper/80 backdrop-blur">
       <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-3">
         <Brand />
-        <nav className="flex items-center gap-1 text-sm">
+                <nav className="no-scrollbar flex items-center gap-1 overflow-x-auto text-sm">
           {links.map((l) => {
             const active =
               pathname === l.href || (l.href !== "/journal/new" && pathname?.startsWith(l.href));
@@ -37,12 +37,13 @@ export function AppNav() {
               <Link
                 key={l.href}
                 href={l.href}
-                className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 transition-colors ${
+                aria-label={l.label}
+                className={`flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1.5 transition-colors ${
                   active ? "bg-ink-900 text-paper" : "text-ink-900/70 hover:bg-ink-100"
                 }`}
               >
                 {Icon && <Icon size={15} />}
-                {l.label}
+                <span className="hidden sm:inline">{l.label}</span>
               </Link>
             );
           })}
