@@ -1,12 +1,16 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { usePollinations, pollenAmount } from "@/components/PollinationsProvider";
 import { useAuth } from "@/components/AuthProvider";
+import { useToast } from "@/components/ToastProvider";
 import { getSettings, saveSettings, DEFAULT_SETTINGS, type Settings } from "@/lib/storage/settings";
 import { clearAllEntries, countEntries } from "@/lib/storage/db";
 import { getUsage } from "@/lib/pollinations/client";
+import { reindexAllEntries } from "@/lib/storage/entries";
+import { exportJournal, importJournal } from "@/lib/storage/io";
 import type { UsageRow } from "@/types";
+import { Download, Upload, RefreshCw, Loader2 } from "lucide-react";
 
 const IMAGE_MODELS = ["flux", "seedream", "nanobanana", "gptimage", "qwen-image", "ideogram-v4-balanced"];
 const TEXT_MODELS = ["openai", "openai-fast", "grok-4-20-reasoning", "claude", "gemini", "deepseek"];
@@ -16,10 +20,14 @@ const EMBED_MODELS = ["openai-3-small", "openai-3-large", "gemini-2"];
 export default function SettingsPage() {
   const { balance, profile, disconnect, refreshAccount, session } = usePollinations();
   const { user, signOut, configured } = useAuth();
+  const toast = useToast();
   const [settings, setSettings] = useState<Settings>(DEFAULT_SETTINGS);
   const [count, setCount] = useState<number | null>(null);
   const [usage, setUsage] = useState<UsageRow[]>([]);
   const [saved, setSaved] = useState(false);
+  const [reindexing, setReindexing] = useState(false);
+  const [reindexProgress, setReindexProgress] = useState<string | null>(null);
+  const importRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     getSettings().then(setSettings);
@@ -42,6 +50,56 @@ export default function SettingsPage() {
     if (!confirm("Erase ALL journal entries from this browser? This can't be undone.")) return;
     await clearAllEntries();
     setCount(0);
+    toast.success("Local entries erased.");
+  }
+
+  async function onReindex() {
+    if (!session?.apiKey) {
+      toast.error("Connect your Pollen first to re-index entries.");
+      return;
+    }
+    if (count === 0) {
+      toast.info("No entries to re-index yet.");
+      return;
+    }
+    setReindexing(true);
+    setReindexProgress("0 / " + count);
+    try {
+      const { done, total } = await reindexAllEntries(
+        session.apiKey,
+        settings.embeddingModel,
+        (d, t) => setReindexProgress(`${d} / ${t}`)
+      );
+      toast.success(`Re-indexed ${done} of ${total} entries.`);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Re-index failed.");
+    } finally {
+      setReindexing(false);
+      setReindexProgress(null);
+    }
+  }
+
+  async function onExport() {
+    try {
+      const n = await exportJournal();
+      toast.success(`Exported ${n} ${n === 1 ? "entry" : "entries"}.`);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Export failed.");
+    }
+  }
+
+  async function onImportFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    const replace = confirm("Replace your current local entries with this file? Cancel to merge instead.");
+    try {
+      const n = await importJournal(file, replace);
+      setCount(await countEntries().catch(() => n));
+      toast.success(`Imported ${n} ${n === 1 ? "entry" : "entries"}.`);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Import failed.");
+    }
   }
 
   const pollen = pollenAmount(balance);
@@ -121,11 +179,19 @@ export default function SettingsPage() {
           <Toggle label="Generate narration" checked={settings.narrate} onChange={(v) => update("narrate", v)} />
           <Toggle label="Generate mood-art" checked={settings.art} onChange={(v) => update("art", v)} />
         </div>
-        {saved && <p className="mt-3 text-xs text-accent">Saved ✓</p>}
+                {saved && <p className="mt-3 text-xs text-accent">Saved ✓</p>}
         <p className="mt-3 text-xs text-ink-900/50">
           Changing the embedding model affects search comparability until older entries are
           re-indexed (new entries use the chosen model).
         </p>
+        <button
+          onClick={onReindex}
+          disabled={reindexing || !count}
+          className="mt-3 inline-flex items-center gap-1.5 rounded-full border border-ink-900/15 px-4 py-2 text-sm text-ink-900/70 hover:bg-ink-100 disabled:opacity-50"
+        >
+          {reindexing ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />}
+          {reindexing ? `Re-indexing ${reindexProgress}` : "Re-index all entries"}
+        </button>
       </section>
 
       {usage.length > 0 && (
@@ -144,12 +210,32 @@ export default function SettingsPage() {
         </section>
       )}
 
-      <section className="mt-4 rounded-2xl border border-ink-100 bg-paper/70 p-5">
+            <section className="mt-4 rounded-2xl border border-ink-100 bg-paper/70 p-5">
         <h2 className="font-serif text-xl">Your data</h2>
         <p className="mt-2 text-sm text-ink-900/70">
           {count === null ? "Counting…" : `${count} ${count === 1 ? "entry" : "entries"} stored locally in this browser.`}
         </p>
         <div className="mt-4 flex flex-wrap gap-3">
+          <button
+            onClick={onExport}
+            disabled={!count}
+            className="inline-flex items-center gap-1.5 rounded-full border border-ink-900/15 px-4 py-2 text-sm text-ink-900/70 hover:bg-ink-100 disabled:opacity-50"
+          >
+            <Download size={14} /> Export JSON
+          </button>
+          <button
+            onClick={() => importRef.current?.click()}
+            className="inline-flex items-center gap-1.5 rounded-full border border-ink-900/15 px-4 py-2 text-sm text-ink-900/70 hover:bg-ink-100"
+          >
+            <Upload size={14} /> Import JSON
+          </button>
+          <input
+            ref={importRef}
+            type="file"
+            accept="application/json,.json"
+            className="hidden"
+            onChange={onImportFile}
+          />
           <button
             onClick={clearData}
             className="rounded-full border border-red-200 px-4 py-2 text-sm text-red-700 hover:bg-red-50"

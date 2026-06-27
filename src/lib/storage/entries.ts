@@ -206,3 +206,47 @@ export async function deleteEntryEverywhere(id: string): Promise<void> {
 export { PollinationsError };
 export type { Settings };
 export { EMBEDDING_DIM };
+
+// ── Re-index: re-embed all entries under the current embedding model ────────
+
+/**
+ * Re-embed every entry using `apiKey` and the chosen embedding model, then
+ * persist + sync each. Used when the user changes the embedding model in
+ * Settings so search stays comparable across all entries. Reports progress
+ * and returns {done, total}. Failures on individual entries are skipped.
+ */
+export async function reindexAllEntries(
+  apiKey: string,
+  model: string,
+  onProgress?: (done: number, total: number) => void
+): Promise<{ done: number; total: number }> {
+  const { listEntries } = await import("./db");
+  const entries = await listEntries();
+  let done = 0;
+  for (const entry of entries) {
+    try {
+      const embeddableText = [
+        entry.reflection?.title,
+        entry.reflection?.reflection,
+        entry.reflection?.emotions?.map((e) => e.label).join(", "),
+        entry.text,
+      ]
+        .filter(Boolean)
+        .join("\n");
+      const embedding = await embedText(apiKey, embeddableText, { model });
+      const updated: JournalEntry = {
+        ...entry,
+        embedding,
+        embeddingModel: model,
+        updatedAt: Date.now(),
+      };
+      await putEntry(updated);
+      await syncAfterWrite(updated);
+      done++;
+    } catch {
+      /* skip this entry */
+    }
+    onProgress?.(done, entries.length);
+  }
+  return { done, total: entries.length };
+}
