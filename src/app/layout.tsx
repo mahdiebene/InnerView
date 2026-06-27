@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import { ToastProvider } from "@/components/ToastProvider";
 import { AuthProvider } from "@/components/AuthProvider";
 import { PollinationsProvider } from "@/components/PollinationsProvider";
 
@@ -13,9 +14,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en">
       <body className="paper-grain min-h-screen font-sans text-ink-900 antialiased">
-        <AuthProvider>
-          <PollinationsProvider>{children}</PollinationsProvider>
-        </AuthProvider>
+        <ToastProvider>
+          <AuthProvider>
+            <PollinationsProvider>{children}</PollinationsProvider>
+          </AuthProvider>
+        </ToastProvider>
       </body>
     </html>
   );

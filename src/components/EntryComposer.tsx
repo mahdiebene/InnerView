@@ -1,8 +1,9 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { usePollinations } from "./PollinationsProvider";
+import { useToast } from "./ToastProvider";
 import { createEntry, type EntryStage, PollinationsError } from "@/lib/storage/entries";
 import { createRecorder, type RecorderHandle } from "@/lib/audio";
 import { Mic, ImagePlus, Square, Loader2, Send, Trash2 } from "lucide-react";
@@ -23,6 +24,7 @@ type Mode = "text" | "voice" | "photo";
 export function EntryComposer() {
   const router = useRouter();
   const { apiKey } = usePollinations();
+  const toast = useToast();
 
   const [mode, setMode] = useState<Mode>("text");
   const [text, setText] = useState("");
@@ -37,6 +39,17 @@ export function EntryComposer() {
   const recorderRef = useRef<RecorderHandle | null>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+  // Abort any in-flight generation when the user navigates away.
+  const abortRef = useRef<AbortController | null>(null);
+
+  useEffect(() => {
+    return () => {
+      // Cancel API calls + stop the mic if the composer unmounts mid-generation.
+      abortRef.current?.abort();
+      if (timerRef.current) clearInterval(timerRef.current);
+      recorderRef.current?.cleanup();
+    };
+  }, []);
 
   function clearAll() {
     setText("");
@@ -50,8 +63,14 @@ export function EntryComposer() {
     if (e instanceof PollinationsError) {
       setError(e.message);
       setTopUp(e.topUpUrl ?? null);
+      // Also surface as a toast, with a top-up action when relevant.
+      toast.error(e.message, e.topUpUrl ? { label: "Top up pollen →", href: e.topUpUrl } : undefined);
+    } else if (e instanceof Error && e.name === "AbortError") {
+      // User navigated away / cancelled — silent.
     } else {
-      setError(e instanceof Error ? e.message : "Something went wrong.");
+      const msg = e instanceof Error ? e.message : "Something went wrong.";
+      setError(msg);
+      toast.error(msg);
     }
   }
 
@@ -64,20 +83,24 @@ export function EntryComposer() {
       if (timerRef.current) clearInterval(timerRef.current);
       if (!rec) return;
       const blob = await rec.stop();
-      setStage("transcribing");
+            setStage("transcribing");
       setBusy(true);
+      abortRef.current = new AbortController();
       try {
         const entry = await createEntry(
           apiKey!,
           { modality: "voice", audio: blob },
-          (u) => setStage(u.stage)
+          (u) => setStage(u.stage),
+          abortRef.current.signal
         );
+        toast.success("Saved to your journal.");
         router.push(`/journal/${entry.id}`);
       } catch (e) {
         handleError(e);
       } finally {
         setBusy(false);
         setStage(null);
+        abortRef.current = null;
       }
       return;
     }
@@ -108,7 +131,8 @@ export function EntryComposer() {
     reader.readAsDataURL(file);
   }
 
-  async function submit() {
+    async function submit() {
+    if (busy) return; // double-submit guard
     setError(null);
     setTopUp(null);
     if (mode === "text" && !text.trim()) {
@@ -120,18 +144,22 @@ export function EntryComposer() {
       return;
     }
     setBusy(true);
+    abortRef.current = new AbortController();
     try {
       const entry = await createEntry(
         apiKey!,
         { modality: mode, text, photoDataUrl },
-        (u) => setStage(u.stage)
+        (u) => setStage(u.stage),
+        abortRef.current.signal
       );
+      toast.success("Saved to your journal.");
       router.push(`/journal/${entry.id}`);
     } catch (e) {
       handleError(e);
     } finally {
       setBusy(false);
       setStage(null);
+      abortRef.current = null;
     }
   }
 
