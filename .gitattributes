@@ -1,0 +1,20 @@
+# Normalize line endings: treat all text files as LF in the repo.
+# This keeps diffs clean across Windows/macOS/Linux contributors.
+* text=auto eol=lf
+
+# Binary files — never normalize
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.icns binary
+*.webp binary
+*.mp3 binary
+*.mp4 binary
+*.webm binary
+*.ogg binary
+*.wav binary
+*.woff binary
+*.woff2 binary
+*.pdf binary

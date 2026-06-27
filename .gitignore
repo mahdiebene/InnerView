@@ -1,0 +1,64 @@
+# ── dependencies ────────────────────────────────────────────────
+/node_modules
+/.pnp
+.pnp.js
+.pnp.cjs
+
+# ── next.js build output ────────────────────────────────────────
+/.next/
+/out/
+/build
+
+# ── typescript ──────────────────────────────────────────────────
+*.tsbuildinfo
+next-env.d.ts
+next-env.d.ts.bak
+
+# ── env / secrets (NEVER commit these) ──────────────────────────
+.env
+.env.*
+!.env.example
+
+# ── debug / package manager logs ────────────────────────────────
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+.pnpm-store/
+
+# ── temp files from local dev runs (build logs, pid files) ──────
+*.log
+*.pid
+*.err
+build.log
+build.err
+build.pid
+dev.log
+dev.err
+dev.pid
+npm.pid
+
+# ── OS / editor junk ────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+desktop.ini
+*.swp
+*.swo
+*~
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+.idea/
+
+# ── misc ────────────────────────────────────────────────────────
+*.pem
+*.key
+coverage/
+.coverage
+*.lcov
+
+# ── Supabase local CLI (we use the hosted dashboard; ignore local) ──
+/supabase/.branches
+/supabase/.temp
+supabase/config.toml
+

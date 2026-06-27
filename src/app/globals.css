@@ -1,0 +1,60 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: light;
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  background: radial-gradient(1200px 800px at 20% -10%, #f3ede2 0%, transparent 60%),
+    radial-gradient(900px 700px at 100% 0%, #efe7df 0%, transparent 55%), #fbf9f5;
+  color: #161513;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* A faint paper grain via layered gradients (no external assets). */
+.paper-grain {
+  background-image:
+    radial-gradient(rgba(120, 99, 71, 0.05) 1px, transparent 1px),
+    radial-gradient(rgba(120, 99, 71, 0.04) 1px, transparent 1px);
+  background-size: 14px 14px, 22px 22px;
+  background-position: 0 0, 7px 11px;
+}
+
+/* Shimmering skeleton for art generation. */
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    rgba(0, 0, 0, 0.04) 25%,
+    rgba(0, 0, 0, 0.08) 37%,
+    rgba(0, 0, 0, 0.04) 63%
+  );
+  background-size: 936px 100%;
+  animation: shimmer 1.4s linear infinite;
+}
+
+/* Readable line lengths for journal text. */
+.prose-entry {
+  max-width: 60ch;
+}
+
+/* Hide scrollbar on the horizontal timeline river but keep scroll. */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* Custom range slider for intensity, etc. */
+input[type="range"] {
+  accent-color: #b4814e;
+}
